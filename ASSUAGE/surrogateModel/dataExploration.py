@@ -107,6 +107,6 @@ class DataExploration():
         plt.tight_layout()
         plt.savefig(os.path.join("surrogateCreation", f"{self.label}explained_variance.png"))
         plt.close()
-
+        print("Figure written to folder surrogateCreation")
 
     

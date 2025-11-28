@@ -63,7 +63,7 @@ def start_new_runs(numNewRuns: int, FSItemplateFolder: str,lowerBounds: Sequence
         parameter_to_model(values, runFolder, alpha=0)
         with open(os.path.join(runFolder, "nohup.out"), "ab") as out:
             subprocess.Popen(
-                ["python3", "runFSI.py"],
+                ["./run.sh", "."],
                 cwd=runFolder,
                 stdout=out,
                 stderr=subprocess.STDOUT
