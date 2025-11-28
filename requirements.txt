@@ -1,0 +1,18 @@
+dask
+dask_jobqueue
+distributed
+dill
+deprecated
+matplotlib
+numpy >= 2.0
+pandas >= 2.2.2
+tables >= 3.10
+time
+pickle
+pytest
+scikit_learn >= 1.5.2
+scipy
+seaborn
+setuptools
+xgboost
+tqdm

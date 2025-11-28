@@ -1,11 +1,11 @@
 # Import all necessary packages
-# Parameters introduced by radius, zPos, number, offset.
+
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import pickle
 import numpy as np
 import os
-
+from ASSUAGE.surrogateModel.ml_plotter import feature_importance
 from encoding import *
 
 lowerBounds = [0.05] * 6 + [0.2] * 6 + [-0.5] * 6 + [0] * 6
@@ -35,15 +35,15 @@ except:
 
 """
 ## Create ground truth data set
-from ASSUAGE.createGroundTruth import start_new_runs, extractData
+from ASSUAGE.create_ground_truth import start_new_runs, extractData
 os.system(f"rm -rf groundTruth surrogateCreation")
 start_new_runs(numNewRuns, FSItemplateFolder, lowerBounds, upperBounds, numCoresPerSim, numCores, parameter_to_model, preprocess_func)
-from ASSUAGE.createGroundTruth import extractData
+from ASSUAGE.create_ground_truth import extractData
 extractData(extract_surrogate_inputs, extract_fitness)"""
 
 """
-from ASSUAGE.surrogateModel.dataExploration import DataExploration
-explorer = DataExploration("surrogateCreation/trainingInput.csv","surrogateCreation/trainingOutput.csv", scaled_vis=False)
+from ASSUAGE.surrogateModel.data_exploration import data_exploration
+explorer = data_exploration("surrogateCreation/trainingInput.csv","surrogateCreation/trainingOutput.csv", scaled_vis=False)
 explorer.correlation_matrix()
 explorer.feature_histograms()
 missing_report = explorer.missing_value_report()
@@ -54,21 +54,20 @@ explorer.pairplot(sample=150, hue=0)
 outlier_mask = explorer.outlier_detection(method="zscore", thresh=3.0)
 importances = explorer.feature_importance_proxy(target_column=0)
 print("\nAll demonstration outputs written to 'surrogateCreation/'.")
-"""
 
 
 
-from ASSUAGE.surrogateModel.mlModelFitting import mlModels
 
+from ASSUAGE.surrogateModel.ml_models import mlModels
 
 modeler = mlModels(
     input_data="surrogateCreation/trainingInput.csv",
     output_data="surrogateCreation/trainingOutput.csv",
     data_label="demo",
     output_dir="surrogateCreation",
-    pca=True,            # no PCA to keep things simple
+    pca=False,            # no PCA to keep things simple
     search_type="random",
-    n_iter=15,            # small n_iter for quick demo
+    n_iter=5,            # small n_iter for quick demo
     n_jobs=10,            # 1 to avoid parallel issues in demo
     seed=42,
     best_model_cutoff=0.95
@@ -76,9 +75,10 @@ modeler = mlModels(
 
 # --- Run a quick holdout evaluation ---
 print("\nRunning evaluate_holdout (quick demo)...")
-results = modeler.evaluate_nested_cv(outer_splits=5, inner_splits=5, create_plots=True)
+results = modeler.evaluate_holdout(test_size=0.1, inner_cv=5, create_plots=True)
+#results = modeler.evaluate_nested_cv(outer_splits=5, inner_splits=5, create_plots=True)
 
-print("\nLive best model recorded in the object:")
+print("\Best model recorded in the object:")
 print(" best_model_name:", modeler.best_model_name)
 print(" best_model_score:", modeler.best_model_score)
 print(" best_model_info:")
@@ -100,44 +100,25 @@ preds = loaded_pipe.predict(sample_X)
 print("\nPredictions on first 5 samples (loaded pipeline):")
 print(preds)
 
+feature_importance(loaded_pipe, output_dir=modeler.output_dir, X=modeler.X, y= modeler.y)
+
 print("\nDemo finished. All outputs written into 'surrogateCreation' folder.")
 
-"""
-from ASSUAGE.optimisation.optFitness import Fitness
+
+
+from ASSUAGE.optimisation.optimisation_fitness import Fitness
 f = Fitness(parameter_to_model, extract_surrogate_inputs, "exampleTemplates/reducedModelTemplate",
         bounds=  (lowerBounds, upperBounds), parameter_names=paramNames, preprocess_func=preprocess_parameters,
-        simulation_folder="SimulationTest")
-
-
-print(f.fitness(np.random.random(size=(24)), id=0).fitness)"""
-
-"""
-ML_model_pickle = ""
-assert os.path.exists(ML_model_pickle), f"No pickle file found at {ML_model_pickle}, check file paths"
-with open(ML_model_pickle, 'rb') as f: 
-    ml_model = pickle.load(f)
-imFile = os.path.join("surrogateCreation", f"initialML")
-
-
-fig, ax = plt.subplots(4,1,figsize=(40,40))
-for i, a in enumerate(ax.flatten()):
-    sc = a.imshow(ml_model.feature_importances_[1:].reshape(4,99,9)[i,::-1,::-1].T, "Greys", vmax=0.015)
-    divider = make_axes_locatable(a)
-    cax = divider.append_axes("bottom", size="30%", pad=2.)  
-    cb = fig.colorbar(sc,orientation='horizontal', cax=cax)
-    a.set_xticks(np.linspace(0,100,7))
-    a.set_xticklabels(np.linspace(0,30,7))
-    a.set_yticks(np.linspace(0,10,8))
-    a.set_yticklabels([3.5,3,"",2,"",1,"",0])
-    a.set_ylabel("$y$ (mm)")
-    a.set_xlabel("$z$ (mm)")
-ax.flatten()[0].set_title("Pressure")
-ax.flatten()[1].set_title("Stress vector, $x$ component")
-ax.flatten()[2].set_title("Stress vector, $y$ component")
-ax.flatten()[3].set_title("Stress vector, $z$ component")
-fig.tight_layout()
-fig.savefig(os.path.join(imFile, "featureImportance.png"))
-plt.close()
+        simulation_folder="SimulationTest", clean_dir=False)
+print(f.fitness(np.random.random(size=(24)), id=0).fitness)
+print(f.fitness(np.random.random(size=(24)), id=1).fitness)
 """
 
 
+from ASSUAGE.optimisation.run_optimisation import runOptimisation
+
+ro = runOptimisation(parameter_to_model=parameter_to_model, extract_surrogate_func=extract_surrogate_inputs, 
+                     surrogate_template_folder="exampleTemplates/reducedModelTemplate", surrogate_file="surrogateCreation/best_pipeline.pkl",
+                     bounds=  (lowerBounds, upperBounds), parameter_names=paramNames, preprocess_func=preprocess_parameters)
+
+ro.run_opt_realisation(seed=42, budget=100, n_jobs=10, simulation_folder="run_optimisation_test", clean_dir=False)

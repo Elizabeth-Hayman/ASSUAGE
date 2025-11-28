@@ -24,7 +24,7 @@ from sklearn.preprocessing import StandardScaler
 os.makedirs("surrogateCreation", exist_ok=True)
 
 
-class DataExploration:
+class data_exploration:
     """
     Perform common exploratory data analysis (EDA) tasks for surrogate modelling.
 

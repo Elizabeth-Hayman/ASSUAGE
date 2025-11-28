@@ -19,7 +19,8 @@ class Fitness(StatefullFitnessFunction):
         preprocess_func: Optional[Callable] = None,
         surrogate_file: Optional[str] = None,
         simulation_folder: Optional[str] = None,
-        log_folder: str = "."
+        log_folder: str = ".",
+        clean_dir: bool = True
     ):
         """
         A fitness function wrapper for use with surrogate-based evaluation.
@@ -41,11 +42,12 @@ class Fitness(StatefullFitnessFunction):
         self.sim_folder = simulation_folder or os.path.join(os.getcwd(), "simulations")
         self.parameter_names = parameter_names
         self.preprocess_func = preprocess_func or (lambda values: (False, values))
+        self.clean_dir = clean_dir
 
         os.makedirs(self.sim_folder, exist_ok=True)
 
         surrogate_file = surrogate_file or os.path.join(
-            os.getcwd(), "surrogateCreation", "best_model_pipeline.pkl"
+            os.getcwd(), "surrogateCreation", "best_pipeline.pkl"
         )
         if not os.path.exists(surrogate_file):
             raise FileNotFoundError(f"No pickle file found at {surrogate_file}")
@@ -99,21 +101,21 @@ class Fitness(StatefullFitnessFunction):
 
         # Run model and extract surrogate features
         self.parameter_to_model(values, run_folder, alpha=0)
-        print(self.extract_surrogate_func(run_folder))
         extracted_data = self.extract_surrogate_func(run_folder).reshape(1, -1)
         prediction = self.surrogate.predict(extracted_data)
 
         # Clean up simulation directory
-        try:
-            subprocess.run(["rm", "-rf", run_folder], check=True)
-        except subprocess.CalledProcessError:
-            print(f"Warning: failed to remove folder {run_folder}")
+        if self.clean_dir:
+            try:
+                subprocess.run(["rm", "-rf", run_folder], check=True)
+            except subprocess.CalledProcessError:
+                print(f"Warning: failed to remove folder {run_folder}")
 
         # Log output
         with open(self.disp_file, "a") as f:
             f.write(f"{id},{prediction[0]}," + ",".join(map(str, values)) + "\n")
 
-        return Solution(id, prediction, proposed_genome=original_values, canonical_genome=np.array(values))
+        return Solution(id, prediction[0], proposed_genome=original_values, canonical_genome=np.array(values))
 
     def preprocess(self, values: np.ndarray) -> Tuple[bool, np.ndarray]:
         """
